@@ -3,11 +3,8 @@ package schema;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.db.Db;
 import cn.hutool.db.Entity;
-import cn.hutool.db.Session;
-import cn.hutool.db.SqlRunner;
 import cn.hutool.log.level.Level;
 import com.alibaba.druid.pool.DruidDataSource;
-import com.google.common.base.MoreObjects;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 
@@ -22,10 +19,11 @@ public class TableDDLGenerator {
         GenerateFlinkSqlSchema.initHutoolDbConfig(false, Level.ERROR);
 
         try (DruidDataSource dataSource = GenerateFlinkSqlSchema.buildDataSource(parameters)) {
-            String tableName = "HS_PROBLEM_SITE";
+            String tableName = "HS_ORD_ORDER";
             List<Entity> columns = Db
                     .use(dataSource)
-                    .query(" " +
+                    .query(
+                            " " +
                             " SELECT\n" +
                             "    A.COLUMN_NAME, A.DATA_TYPE, A.DATA_LENGTH, A.DATA_PRECISION, A.DATA_SCALE, A.NULLABLE, B.COMMENTS\n" +
                             "    FROM USER_TAB_COLUMNS A\n" +
@@ -36,10 +34,10 @@ public class TableDDLGenerator {
                             "    A.TABLE_NAME = ? ", tableName);
 
 
-            StringBuilder tidbDDLBuilder = new StringBuilder();
-            StringBuilder starRocksDDLBuilder = new StringBuilder();
-            tidbDDLBuilder.append("CREATE TABLE ").append(tableName.toLowerCase()).append(" (\n");
-            starRocksDDLBuilder.append("CREATE TABLE ").append(tableName.toLowerCase()).append(" (\n");
+            StringBuilder tidbDdlBuilder = new StringBuilder();
+            StringBuilder starRocksDdlBuilder = new StringBuilder();
+            tidbDdlBuilder.append("CREATE TABLE ").append(tableName.toLowerCase()).append(" (\n");
+            starRocksDdlBuilder.append("CREATE TABLE ").append(tableName.toLowerCase()).append(" (\n");
 
             for (Entity column : columns) {
                 String columnName = column.getStr("COLUMN_NAME").toLowerCase();
@@ -50,55 +48,55 @@ public class TableDDLGenerator {
                 String nullable = column.getStr("NULLABLE");
                 String comments = StringUtils.isBlank(column.getStr("COMMENTS")) ? "" : column.getStr("COMMENTS");
 
-                String tidbDataType = getTidbDataType(oracleDataType, columnSize, dataPrecision, dataScale);
+                String tidbDataType = getTidbDataType(oracleDataType, columnSize, dataPrecision, dataScale,columnName);
                 String starRocksDataType = getStarRocksDataType(oracleDataType, columnSize, dataPrecision, dataScale);
 
-                tidbDDLBuilder.append(" ").append(String.format("%-24s", columnName))
+                tidbDdlBuilder.append(" ").append(String.format("%-24s", columnName))
                         .append("\t")
                         .append(tidbDataType)
-                        .append(nullable.equalsIgnoreCase("N") ? " NOT NULL" : "")
+                        .append("N".equalsIgnoreCase(nullable) ? " NOT NULL" : "")
                         .append("\t").append("COMMENT '").append(comments).append("'")
                         .append(",")
                         .append("\n");
 
-                starRocksDDLBuilder.append(" ").append(String.format("%-24s", columnName))
+                starRocksDdlBuilder.append(" ").append(String.format("%-24s", columnName))
                         .append("\t")
                         .append(starRocksDataType)
-                        .append(nullable.equalsIgnoreCase("N") ? " NOT NULL" : "")
+                        .append("N".equalsIgnoreCase(nullable) ? " NOT NULL" : "")
                         .append("\t").append("COMMENT '").append(comments).append("'")
                         .append(",")
                         .append("\n");
-
-                starRocksDDLBuilder.deleteCharAt(starRocksDDLBuilder.lastIndexOf(","));
             }
+
+            starRocksDdlBuilder.deleteCharAt(starRocksDdlBuilder.lastIndexOf(","));
 
             List<Entity> primaryKeys = Db.use(dataSource)
                     .query("SELECT COLUMN_NAME FROM USER_CONSTRAINTS uc JOIN USER_CONS_COLUMNS ucc ON uc.CONSTRAINT_NAME = " +
                             "ucc.CONSTRAINT_NAME WHERE uc.TABLE_NAME = ? AND uc.CONSTRAINT_TYPE = 'P'", tableName);
 
-            String primaryKeyDDL = getPrimaryKeyDDL(primaryKeys, tableName);
+            String primaryKeyDdl = getPrimarykeyDdl(primaryKeys, tableName);
 //            String uniqueIndexDDL = getUniqueIndexDDL(dataSource, tableName);
 
-            if (StringUtils.isNotBlank(primaryKeyDDL)) {
-                tidbDDLBuilder.append(primaryKeyDDL);
+            if (StringUtils.isNotBlank(primaryKeyDdl)) {
+                tidbDdlBuilder.append(primaryKeyDdl);
             }
 
-            tidbDDLBuilder.append("\n) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;");
+            tidbDdlBuilder.append("\n) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;");
 
 
-            starRocksDDLBuilder.append("\n) ENGINE = OLAP\n")
-                    .append(primaryKeyDDL).append("\n")
+            starRocksDdlBuilder.append("\n) ENGINE = OLAP\n")
+                    .append(primaryKeyDdl).append("\n")
                     .append("DISTRIBUTED BY HASH(具体Hash字段) BUCKETS 具体分桶数量")
             ;
 
-            String tidbDDL = tidbDDLBuilder.toString();
-            String starRocksDDL = starRocksDDLBuilder.toString();
+            String tidbDdl = tidbDdlBuilder.toString();
+            String starRocksDdl = starRocksDdlBuilder.toString();
 
             System.out.println(".................Tidb Table DDL.................");
-            System.out.println(tidbDDL);
+            System.out.println(tidbDdl);
 
             System.out.println(".................StarRocks Table DDL.................");
-            System.out.println(starRocksDDL);
+            System.out.println(starRocksDdl);
 
 //            writeDDLToFile(tidbDDL, "tidb_table.sql");
 //            writeDDLToFile(starRocksDDL, "starrocks_table.sql");
@@ -107,8 +105,14 @@ public class TableDDLGenerator {
         }
     }
 
-    private static String getTidbDataType(String oracleDataType, Integer columnSize, Integer dataPrecision, Integer dataScale) {
-        if (oracleDataType.equalsIgnoreCase("NUMBER")) {
+    private static String getTidbDataType(String oracleDataType, Integer columnSize,
+                                          Integer dataPrecision, Integer dataScale, String colName) {
+        if ("NUMBER".equalsIgnoreCase(oracleDataType)) {
+
+            if(dataScale == null ) {
+                return "BIGINT";
+            }
+
             if (dataScale > 0) {
                 if (dataPrecision > 0) {
                     if (dataPrecision <= 9) {
@@ -136,7 +140,7 @@ public class TableDDLGenerator {
                     return "BIGINT";
                 }
             }
-        } else if (oracleDataType.equalsIgnoreCase("VARCHAR2") || oracleDataType.equalsIgnoreCase("NVARCHAR2")) {
+        } else if ("VARCHAR2".equalsIgnoreCase(oracleDataType) || "NVARCHAR2".equalsIgnoreCase(oracleDataType)) {
             if (columnSize > 0 && columnSize <= 65535) {
                 return "VARCHAR(" + columnSize + ")";
             } else if (columnSize > 65535) {
@@ -144,19 +148,19 @@ public class TableDDLGenerator {
             } else {
                 return "VARCHAR(255)";
             }
-        } else if (oracleDataType.equalsIgnoreCase("CHAR") || oracleDataType.equalsIgnoreCase("NCHAR")) {
+        } else if ("CHAR".equalsIgnoreCase(oracleDataType) || "NCHAR".equalsIgnoreCase(oracleDataType)) {
             if (columnSize > 0 && columnSize <= 255) {
                 return "CHAR(" + columnSize + ")";
             } else {
                 return "CHAR(1)";
             }
-        } else if (oracleDataType.equalsIgnoreCase("DATE")) {
+        } else if ("DATE".equalsIgnoreCase(oracleDataType)) {
             return "DATETIME";
-        } else if (oracleDataType.equalsIgnoreCase("TIMESTAMP")) {
+        } else if ("TIMESTAMP".equalsIgnoreCase(oracleDataType)) {
             return "TIMESTAMP";
-        } else if (oracleDataType.equalsIgnoreCase("CLOB")) {
+        } else if ("CLOB".equalsIgnoreCase(oracleDataType)) {
             return "TEXT";
-        } else if (oracleDataType.equalsIgnoreCase("BLOB")) {
+        } else if ("BLOB".equalsIgnoreCase(oracleDataType)) {
             return "BLOB";
         } else {
             return "TEXT";
@@ -164,7 +168,10 @@ public class TableDDLGenerator {
     }
 
     private static String getStarRocksDataType(String oracleDataType, Integer columnSize, Integer dataPrecision, Integer dataScale) {
-        if (oracleDataType.equalsIgnoreCase("NUMBER")) {
+        if ("NUMBER".equalsIgnoreCase(oracleDataType)) {
+            if (dataScale == null) {
+                return "BIGINT";
+            }
             if (dataScale > 0) {
                 if (dataPrecision > 0) {
                     if (dataPrecision <= 9) {
@@ -192,7 +199,7 @@ public class TableDDLGenerator {
                     return "BIGINT";
                 }
             }
-        } else if (oracleDataType.equalsIgnoreCase("VARCHAR2") || oracleDataType.equalsIgnoreCase("NVARCHAR2")) {
+        } else if ("VARCHAR2".equalsIgnoreCase(oracleDataType) || "NVARCHAR2".equalsIgnoreCase(oracleDataType)) {
             if (columnSize > 0 && columnSize <= 65535) {
                 return "VARCHAR(" + columnSize + ")";
             } else if (columnSize > 65535) {
@@ -200,19 +207,19 @@ public class TableDDLGenerator {
             } else {
                 return "VARCHAR(255)";
             }
-        } else if (oracleDataType.equalsIgnoreCase("CHAR") || oracleDataType.equalsIgnoreCase("NCHAR")) {
+        } else if ("CHAR".equalsIgnoreCase(oracleDataType) || "NCHAR".equalsIgnoreCase(oracleDataType)) {
             if (columnSize > 0 && columnSize <= 255) {
                 return "CHAR(" + columnSize + ")";
             } else {
                 return "CHAR(1)";
             }
-        } else if (oracleDataType.equalsIgnoreCase("DATE")) {
+        } else if ("DATE".equalsIgnoreCase(oracleDataType)) {
             return "DATETIME";
-        } else if (oracleDataType.equalsIgnoreCase("TIMESTAMP")) {
+        } else if ("TIMESTAMP".equalsIgnoreCase(oracleDataType)) {
             return "DATETIME";
-        } else if (oracleDataType.equalsIgnoreCase("CLOB")) {
+        } else if ("CLOB".equalsIgnoreCase(oracleDataType)) {
             return "STRING";
-        } else if (oracleDataType.equalsIgnoreCase("BLOB")) {
+        } else if ("BLOB".equalsIgnoreCase(oracleDataType)) {
             return "BINARY";
         } else {
             return "STRING";
@@ -220,16 +227,16 @@ public class TableDDLGenerator {
     }
 
 
-    private static String getPrimaryKeyDDL(List<Entity> primaryKeys, String tableName) throws SQLException {
+    private static String getPrimarykeyDdl(List<Entity> primaryKeys, String tableName) throws SQLException {
 
         if (CollUtil.isNotEmpty(primaryKeys)) {
-            StringBuilder primaryKeyDDL = new StringBuilder();
-            primaryKeyDDL.append("PRIMARY KEY (");
+            StringBuilder primaryKeyDdl = new StringBuilder();
+            primaryKeyDdl.append("PRIMARY KEY (");
 
             for (Entity primaryKey : primaryKeys) {
-                primaryKeyDDL.append(primaryKey.getStr("COLUMN_NAME").toLowerCase()).append(",");
+                primaryKeyDdl.append(primaryKey.getStr("COLUMN_NAME").toLowerCase()).append(",");
             }
-            return primaryKeyDDL.deleteCharAt(primaryKeyDDL.lastIndexOf(",")).append(")").toString();
+            return primaryKeyDdl.deleteCharAt(primaryKeyDdl.lastIndexOf(",")).append(")").toString();
         }
 
         System.out.println("表 : " + tableName + " 不存在主键 , 请根据需要指定主键字段");
@@ -237,26 +244,26 @@ public class TableDDLGenerator {
         return "";
     }
 
-    private static String getUniqueIndexDDL(DruidDataSource dataSource, String tableName) throws SQLException {
+    private static String getUniqueIndexDdl(DruidDataSource dataSource, String tableName) throws SQLException {
         List<Entity> uniqueIndexes = Db
                 .use(dataSource)
                 .query(" SELECT COLUMN_NAME FROM USER_INDEXES ui JOIN USER_IND_COLUMNS uic ON ui.INDEX_NAME = uic.INDEX_NAME " +
                         " WHERE ui.TABLE_NAME = ? AND ui.UNIQUENESS = 'UNIQUE'", tableName);
 
         if (!uniqueIndexes.isEmpty()) {
-            StringBuilder uniqueIndexDDL = new StringBuilder();
+            StringBuilder uniqueIndexDdl = new StringBuilder();
 
             for (Entity uniqueIndex : uniqueIndexes) {
-                uniqueIndexDDL.append(",\nUNIQUE KEY ").append(uniqueIndex.getStr("COLUMN_NAME").toLowerCase()).append(" (").append(uniqueIndex.getStr("COLUMN_NAME").toLowerCase()).append(")");
+                uniqueIndexDdl.append(",\nUNIQUE KEY ").append(uniqueIndex.getStr("COLUMN_NAME").toLowerCase()).append(" (").append(uniqueIndex.getStr("COLUMN_NAME").toLowerCase()).append(")");
             }
 
-            return uniqueIndexDDL.toString();
+            return uniqueIndexDdl.toString();
         }
 
         return "";
     }
 
-    private static void writeDDLToFile(String ddl, String filePath) {
+    private static void writeDdlToFile(String ddl, String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write(ddl);
             System.out.println("Table DDL has been written to file: " + filePath);

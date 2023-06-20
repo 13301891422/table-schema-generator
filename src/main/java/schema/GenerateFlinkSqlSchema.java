@@ -157,9 +157,33 @@ public class GenerateFlinkSqlSchema {
             createSinkTidbBaseStr = "CREATE TABLE " + sinkTidbPrefix + tableName + " (" + "\n" + fieldAndTypeStrNoPriKey;
         }
 
-        String starRocksSinkStatement = createSinkStarBaseStr + ") WITH (" + "\n" + "  " + "'connector' = '${starrocks.connector}'" + ",\n" + "  " + "'jdbc-url' = '${starrocks.jdbc.url}'" + ",\n" + "  " + "'load-url' = '${starrocks.load.url}'" + ",\n" + "  " + "'database-name' = '${starrocks.database}'" + ",\n" + "  " + "'table-name' = '${starrocks.table}'" + ",\n" + "  " + "'username' = '${starrocks.username}'" + ",\n" + "  " + "'password' = '${starrocks.password}'" + ",\n" + "  " + "'sink.buffer-flush.max-rows' = '${starrocks.sink.buffer-flush.max-rows}'" + ",\n" + "  " + "'sink.buffer-flush.max-bytes' = '${starrocks.sink.buffer-flush.max-bytes}'" + ",\n" + "  " + "'sink.buffer-flush.interval-ms' = '${starrocks.sink.buffer-flush.interval-ms}',\n" + "  " + "'sink.properties.column_separator' = '${starrocks.sink.properties.column_separator}'" + ",\n" + "  " + "'sink.properties.row_delimiter' = '${starrocks.sink.properties.row_delimiter}'" + ",\n" + "  " + "'sink.max-retries' = '${starrocks.sink.max-retries}'" + "\n" + ");";
+        String starRocksSinkStatement = createSinkStarBaseStr +
+                " ) WITH (" + "\n" + "  " +
+                " 'connector' = '${starrocks_connector}'" + ",\n" + "  " +
+                " 'jdbc-url' = '${starrocks_jdbc_url}'" + ",\n" + "  " +
+                " 'load-url' = '${starrocks_load_url}'" + ",\n" + "  " +
+                " 'database-name' = '${starrocks.database}'" + ",\n" + "  " +
+                " 'table-name' = '${starrocks.table}'" + ",\n" + "  " +
+                " 'username' = '${starrocks.username}'" + ",\n" + "  " +
+                " 'password' = '${starrocks.password}'" + ",\n" + "  " +
+                " 'sink.buffer-flush.max-rows' = '${starrocks_sink_buffer_max_rows}'" + ",\n" + "  " +
+                " 'sink.buffer-flush.max-bytes' = '${starrocks_sink_buffer_flush_max_bytes}'" + ",\n" + "  " +
+                " 'sink.buffer-flush.interval-ms' = '${starrocks_sink_buffer_interval_ms}',\n" + "  " +
+                " 'sink.properties.column_separator' = '${starrocks_sink_properties_column_separator}'" + ",\n" + "  " +
+                " 'sink.properties.row_delimiter' = '${starrocks_sink_properties_row_delimiter}'" + ",\n" + "  " +
+                " 'sink.max-retries' = '${starrocks_sink_max_retries}'" + "\n" + ");";
 
-        String tidbSinkStatement = createSinkTidbBaseStr + ") WITH (" + "\n" + "  " + "'connector' = '${jdbc.connector}'" + ",\n" + "  " + "'table-name' = 'tidb_table'" + ",\n" + "  " + "'driver' = '${tidb.driver}'" + ",\n" + "  " + "'url' = '${tidb.url}'" + ",\n" + "  " + "'username' = '${tidb.username}'" + ",\n" + "  " + "'password' = '${tidb.password}'" + ",\n" + "  " + "'sink.buffer-flush.interval' = '${tidb.sink.buffer-flush.interval}'" + ",\n" + "  " + "'sink.buffer-flush.max-rows' = '${tidb.sink.buffer-flush.max-rows}'" + ",\n" + "  " + "'sink.max-retries' = '${tidb.sink.max-retries}'" + "\n" + ");";
+        String tidbSinkStatement = createSinkTidbBaseStr + "" +
+                " ) WITH (" + "\n" + "  " +
+                " 'connector' = '${jdbc_connector}'" + ",\n" + "  " +
+                " 'table-name' = 'tidb_table'" + ",\n" + "  " +
+                " 'url' = '${tidb_url}'" + ",\n" + "  " +
+                " 'username' = '${tidb_username}'" + ",\n" + "  " +
+                " 'password' = '${tidb_password}'" + ",\n" + "  " +
+                " 'sink.buffer-flush.interval' = '${tidb_sink_buffer_flush_interval}'" + ",\n" + "  " +
+                " 'sink.buffer-flush.max-rows' = '${tidb_sink_buffer_flush_max_rows}'" + ",\n" + "  " +
+                " 'sink.max-retries' = '${tidb_sink_max_retries}'" + "\n" +
+                " );";
 
         String insertStarStatement = insertStatement(sinkStarPrefix, tableName, fieldNameStr);
         String insertTidbStatement = insertStatement(sinkTidbPrefix, tableName, fieldNameStr);

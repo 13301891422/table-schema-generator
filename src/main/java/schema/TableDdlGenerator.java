@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-public class TableDDLGenerator {
+public class TableDdlGenerator {
     public static void main(String[] args) throws Exception {
         ParameterTool parameters = ParameterTool.fromArgs(args);
         GenerateFlinkSqlSchema.initHutoolDbConfig(false, Level.ERROR);
@@ -24,14 +24,14 @@ public class TableDDLGenerator {
                     .use(dataSource)
                     .query(
                             " " +
-                            " SELECT\n" +
-                            "    A.COLUMN_NAME, A.DATA_TYPE, A.DATA_LENGTH, A.DATA_PRECISION, A.DATA_SCALE, A.NULLABLE, B.COMMENTS\n" +
-                            "    FROM USER_TAB_COLUMNS A\n" +
-                            " LEFT JOIN USER_COL_COMMENTS B\n" +
-                            " ON A.TABLE_NAME = B.TABLE_NAME\n" +
-                            " AND A.COLUMN_NAME = B.COLUMN_NAME\n" +
-                            " WHERE\n" +
-                            "    A.TABLE_NAME = ? ", tableName);
+                " SELECT\n" +
+                "    A.COLUMN_NAME, A.DATA_TYPE, A.DATA_LENGTH, A.DATA_PRECISION, A.DATA_SCALE, A.NULLABLE, B.COMMENTS\n" +
+                "    FROM USER_TAB_COLUMNS A\n" +
+                " LEFT JOIN USER_COL_COMMENTS B\n" +
+                " ON A.TABLE_NAME = B.TABLE_NAME\n" +
+                " AND A.COLUMN_NAME = B.COLUMN_NAME\n" +
+                " WHERE\n" +
+                "    A.TABLE_NAME = ? ", tableName);
 
 
             StringBuilder tidbDdlBuilder = new StringBuilder();
@@ -48,7 +48,7 @@ public class TableDDLGenerator {
                 String nullable = column.getStr("NULLABLE");
                 String comments = StringUtils.isBlank(column.getStr("COMMENTS")) ? "" : column.getStr("COMMENTS");
 
-                String tidbDataType = getTidbDataType(oracleDataType, columnSize, dataPrecision, dataScale,columnName);
+                String tidbDataType = getTidbDataType(oracleDataType, columnSize, dataPrecision, dataScale);
                 String starRocksDataType = getStarRocksDataType(oracleDataType, columnSize, dataPrecision, dataScale);
 
                 tidbDdlBuilder.append(" ").append(String.format("%-24s", columnName))
@@ -106,21 +106,19 @@ public class TableDDLGenerator {
     }
 
     private static String getTidbDataType(String oracleDataType, Integer columnSize,
-                                          Integer dataPrecision, Integer dataScale, String colName) {
+                                          Integer dataPrecision, Integer dataScale) {
         if ("NUMBER".equalsIgnoreCase(oracleDataType)) {
 
-            if(dataScale == null ) {
+            if (dataScale == null) {
                 return "BIGINT";
             }
 
             if (dataScale > 0) {
+                // 小数点后还有值，类似于NUMBER(10,2这种的)
                 if (dataPrecision > 0) {
-                    if (dataPrecision <= 9) {
-                        return "DECIMAL(" + dataPrecision + ", " + dataScale + ")";
-                    } else {
-                        return "DECIMAL(" + dataPrecision + ", 0)";
-                    }
+                    return "DECIMAL(" + dataPrecision + ", " + dataScale + ")";
                 } else {
+                    // 
                     return "DECIMAL(65, " + dataScale + ")";
                 }
             } else {
@@ -174,11 +172,11 @@ public class TableDDLGenerator {
             }
             if (dataScale > 0) {
                 if (dataPrecision > 0) {
-                    if (dataPrecision <= 9) {
-                        return "DECIMAL(" + dataPrecision + ", " + dataScale + ")";
-                    } else {
-                        return "DECIMAL(" + dataPrecision + ", 0)";
-                    }
+//                    if (dataPrecision <= 9) {
+                    return "DECIMAL(" + dataPrecision + ", " + dataScale + ")";
+//                    } else {
+//                        return "DECIMAL(" + dataPrecision + ", 0)";
+//                    }
                 } else {
                     return "DECIMAL(18, " + dataScale + ")";
                 }
@@ -201,7 +199,7 @@ public class TableDDLGenerator {
             }
         } else if ("VARCHAR2".equalsIgnoreCase(oracleDataType) || "NVARCHAR2".equalsIgnoreCase(oracleDataType)) {
             if (columnSize > 0 && columnSize <= 65535) {
-                return "VARCHAR(" + columnSize + ")";
+                return "VARCHAR(" + columnSize * 4 + ")";
             } else if (columnSize > 65535) {
                 return "TEXT";
             } else {

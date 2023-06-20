@@ -57,11 +57,30 @@ public class GenerateFlinkSqlSchema {
     }
 
     public static String getPriAndUniqKeySql(String table) {
-        return String.format("" + " SELECT " + "     CASE WHEN AU.CONSTRAINT_TYPE = 'P' THEN CU.COLUMN_NAME ELSE '' END PRIMARY_KEY, " + "     CASE WHEN AU.CONSTRAINT_TYPE = 'U' THEN CU.COLUMN_NAME ELSE '' END UNIQUE_KEY   " + " FROM USER_CONS_COLUMNS CU,USER_CONSTRAINTS AU                                       " + " WHERE CU.CONSTRAINT_NAME = AU.CONSTRAINT_NAME AND AU.TABLE_NAME = '%s' " + " AND AU.CONSTRAINT_TYPE IN ('P','U')", table);
+        return String.format("" + " SELECT " + "    " +
+                " CASE WHEN AU.CONSTRAINT_TYPE = 'P' THEN CU.COLUMN_NAME ELSE '' END PRIMARY_KEY, " + "     " +
+                " CASE WHEN AU.CONSTRAINT_TYPE = 'U' THEN CU.COLUMN_NAME ELSE '' END UNIQUE_KEY   " + " FROM " +
+                " USER_CONS_COLUMNS CU,USER_CONSTRAINTS AU                                       " + " " +
+                " WHERE CU.CONSTRAINT_NAME = AU.CONSTRAINT_NAME AND AU.TABLE_NAME = '%s' " + " " +
+                " AND AU.CONSTRAINT_TYPE IN ('P','U')", table);
     }
 
     public static String getColumnsQuerySql(String table) {
-        return String.format("" + " SELECT LOWER(A.COLUMN_NAME) || ' ' AS FIELD_NAME,\n" + "        CASE\n" + "            WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE = 0 AND A.DATA_PRECISION < 5 THEN 'BIGINT'\n" + "            WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE = 0 AND A.DATA_PRECISION >= 5 AND A.DATA_PRECISION <= 9\n" + "                THEN 'BIGINT'\n" + "            WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE = 0 AND A.DATA_PRECISION >= 9 AND A.DATA_PRECISION <= 18\n" + "                THEN 'BIGINT'\n" + "            WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_PRECISION > 18 THEN 'STRING'\n" + "            WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE >= 1 THEN 'STRING'" + "            WHEN A.DATA_TYPE = 'VARCHAR2' THEN 'STRING'\n" + "            WHEN A.DATA_TYPE = 'DATE' THEN 'STRING'\n" + "            WHEN A.DATA_TYPE = 'TIMESTAMP' THEN 'STRING'\n" + "            ELSE 'STRING'\n" + "            END                     AS DATA_TYPE,\n" + "        B.comments                  AS DATA_COMMENT\n" + " FROM USER_TAB_COLUMNS A\n" + "          LEFT JOIN user_col_comments B ON A.TABLE_NAME = B.TABLE_NAME AND A.COLUMN_NAME = B.COLUMN_NAME\n" + " WHERE A.TABLE_NAME = '%s'\n" + " ORDER BY A.COLUMN_ID", table);
+        return String.format("" +
+                " SELECT LOWER(A.COLUMN_NAME) || ' ' AS FIELD_NAME,\n" +
+                " CASE  WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE = 0 AND A.DATA_PRECISION < 5 THEN 'INTEGER'\n" +
+                " WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE = 0 AND A.DATA_PRECISION >= 5 AND A.DATA_PRECISION <= 9 THEN 'INTEGER'\n" +
+                " WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE = 0 AND A.DATA_PRECISION >= 9 AND A.DATA_PRECISION <= 18 THEN 'BIGINT'\n" +
+                " WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_PRECISION > 18 THEN 'STRING'\n" +
+                " WHEN A.DATA_TYPE = 'NUMBER' AND A.DATA_SCALE >= 1 THEN 'STRING'\n" +
+                " WHEN A.DATA_TYPE = 'VARCHAR2' THEN 'STRING'\n" +
+                " WHEN A.DATA_TYPE = 'DATE' THEN 'STRING'\n" +
+                " WHEN A.DATA_TYPE = 'TIMESTAMP' THEN 'STRING'\n" +
+                " ELSE 'STRING'             END                     AS DATA_TYPE,\n" +
+                " B.comments                  AS DATA_COMMENT\n" +
+                " FROM USER_TAB_COLUMNS A\n" +
+                " LEFT JOIN user_col_comments B ON A.TABLE_NAME = B.TABLE_NAME AND A.COLUMN_NAME = B.COLUMN_NAME\n" +
+                " WHERE A.TABLE_NAME = '%s'  ORDER BY A.COLUMN_ID", table);
     }
 
     public static void buildColumns(List<Entity> columnsResult, List<Field> columns, String tableName) {

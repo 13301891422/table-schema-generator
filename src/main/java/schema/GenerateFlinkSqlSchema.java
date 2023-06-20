@@ -1,6 +1,7 @@
 package schema;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.db.Db;
 import cn.hutool.db.Entity;
 import cn.hutool.db.GlobalDbConfig;
@@ -11,6 +12,7 @@ import bean.TableInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 
@@ -20,6 +22,8 @@ import java.util.Locale;
  */
 public class GenerateFlinkSqlSchema {
 
+    public static String filePath;
+
     public static void main(String[] args) throws Exception {
 
         ParameterTool parameters = ParameterTool.fromArgs(args);
@@ -27,6 +31,7 @@ public class GenerateFlinkSqlSchema {
         DruidDataSource dataSource = buildDataSource(parameters);
         try {
             String table = parameters.get("oracle.table");
+            filePath = parameters.get("file.path");
 //        String database = parameters.get("oracle.database");
             String columnsQuerySql = getColumnsQuerySql(table);
             String priUniqQuerySql = getPriAndUniqKeySql(table);
@@ -190,8 +195,8 @@ public class GenerateFlinkSqlSchema {
 
         String flinkSqlStr = tableMessage + "\n" + keyMessage + "\n\n" + "-----------------Source-----------------" + "\n" + sourceStatement + "\n\n" + "-----------------StarSink-----------------" + "\n" + starRocksSinkStatement + "\n\n" + "-----------------TidbSink-----------------" + "\n" + tidbSinkStatement + "\n\n" + "-----------------InsertStar-----------------" + "\n" + insertStarStatement + "\n\n" + "-----------------InsertTidb-----------------" + "\n" + insertTidbStatement;
 
-        System.out.println(flinkSqlStr);
-//        FileUtil.writeString(flinkSqlStr, "/"apps/svr/generate-flink-sql/text.txt, StandardCharsets.UTF_8);
+//        System.out.println(flinkSqlStr);
+        FileUtil.writeString(flinkSqlStr, filePath + "/flink_schema.txt", StandardCharsets.UTF_8);
     }
 
     public static String insertStatement(String sinkTablePrefix, String tableName, String fieldNameStr) {
@@ -205,10 +210,14 @@ public class GenerateFlinkSqlSchema {
 //        String url = parameters.get("oracle.url");
 //        String username = parameters.get("oracle.username");
 //        String password = parameters.get("oracle.password");
+//        String sid = parameters.get("oracle.sid");
+//        String host = parameters.get("oracle.host");
 
         // Oracle 配置
+        String sid = "ztodbkf";
         String driver = "oracle.jdbc.OracleDriver";
-        String url = "jdbc:oracle:thin:@10.202.16.14:1521:ztodbkf";
+        String host = "10.202.16.14";
+        String url = String.format("jdbc:oracle:thin:@%s:1521:%s", host, sid);
         String username = "ztotest";
         String password = "Dyzto.#09";
 

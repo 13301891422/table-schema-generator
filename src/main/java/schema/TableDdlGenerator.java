@@ -14,16 +14,19 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class TableDdlGenerator {
+
+    public static String filePath;
     public static void main(String[] args) throws Exception {
         ParameterTool parameters = ParameterTool.fromArgs(args);
         GenerateFlinkSqlSchema.initHutoolDbConfig(false, Level.ERROR);
 
         try (DruidDataSource dataSource = GenerateFlinkSqlSchema.buildDataSource(parameters)) {
-            String tableName = "HS_ORD_ORDER";
+//            String tableName = "HS_ORD_ORDER";
+            filePath = parameters.get("file.path");
+            String tableName = parameters.get("oracle.table");
             List<Entity> columns = Db
                     .use(dataSource)
-                    .query(
-                            " " +
+                    .query(" " +
                 " SELECT\n" +
                 "    A.COLUMN_NAME, A.DATA_TYPE, A.DATA_LENGTH, A.DATA_PRECISION, A.DATA_SCALE, A.NULLABLE, B.COMMENTS\n" +
                 "    FROM USER_TAB_COLUMNS A\n" +
@@ -31,8 +34,7 @@ public class TableDdlGenerator {
                 " ON A.TABLE_NAME = B.TABLE_NAME\n" +
                 " AND A.COLUMN_NAME = B.COLUMN_NAME\n" +
                 " WHERE\n" +
-                "    A.TABLE_NAME = ? ", tableName);
-
+                " A.TABLE_NAME = ? ", tableName);
 
             StringBuilder tidbDdlBuilder = new StringBuilder();
             StringBuilder starRocksDdlBuilder = new StringBuilder();
@@ -86,17 +88,20 @@ public class TableDdlGenerator {
 
             starRocksDdlBuilder.append("\n) ENGINE = OLAP\n")
                     .append(primaryKeyDdl).append("\n")
-                    .append("DISTRIBUTED BY HASH(具体Hash字段) BUCKETS 具体分桶数量")
-            ;
+                    .append("DISTRIBUTED BY HASH(具体Hash字段) BUCKETS 具体分桶数量");
 
             String tidbDdl = tidbDdlBuilder.toString();
             String starRocksDdl = starRocksDdlBuilder.toString();
 
-            System.out.println(".................Tidb Table DDL.................");
-            System.out.println(tidbDdl);
+//            System.out.println(".................Tidb Table DDL.................");
+//            System.out.println(tidbDdl);
+//
+//            System.out.println(".................StarRocks Table DDL.................");
+//            System.out.println(starRocksDdl);
 
-            System.out.println(".................StarRocks Table DDL.................");
-            System.out.println(starRocksDdl);
+//            StringBuilder finalBuilder = new StringBuilder();
+//            finalBuilder.append(".................Tidb Table DDL.................")
+
 
 //            writeDDLToFile(tidbDDL, "tidb_table.sql");
 //            writeDDLToFile(starRocksDDL, "starrocks_table.sql");
